@@ -34,7 +34,7 @@ typedef struct {
     float score;
     float episode_return;
     float episode_length;
-    int n;
+    float n;
 } Log;
 
 typedef struct {
@@ -206,26 +206,16 @@ void c_step(Boids *env) {
         env->boid_logs[current_indx].episode_length += 1.0f;
 
         // termination check
-        if (current_boid_reward <= -0.99f) {
-            terminated = true;
+        if (env->tick % 128 == 0) {
             env->boid_logs[current_indx].score = env->boid_logs[current_indx].episode_return;
             env->boid_logs[current_indx].perf  = (env->boid_logs[current_indx].score/env->boid_logs[current_indx].episode_length + 1.0f)*0.5f;
             add_log(env, current_indx);
-            respawn_boid(env, current_indx);
+            env->tick = 0;
         }
     }
 
     // environment level updates
     env->rewards[0] = (env->num_boids > 0) ? total_reward / env->num_boids : 0.0f;
-
-    if (terminated || env->tick >= env->max_steps) {
-        env->terminals[0] = 1;
-        if (!terminated && env->tick >= env->max_steps) {
-            env->terminals[0] = 0;
-        }
-    } else if (env->tick >= env->max_steps) {
-    }
-
     compute_observations(env);
 }
 

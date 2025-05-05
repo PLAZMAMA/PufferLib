@@ -21,18 +21,18 @@ class Boids(pufferlib.PufferEnv):
         report_interval=1,
         seed=0
     ):
-        self.num_agents = num_envs
+        self.num_agents = num_envs * num_boids
         self.num_boids = num_boids
         self.max_steps = max_steps
 
         # Define single observation space for one agent (boid)
         self.single_observation_space = gymnasium.spaces.Box(
-            -1000.0, 1000.0, shape=(self.num_boids, 4), dtype=np.float32
+            -1000.0, 1000.0, shape=(4,), dtype=np.float32
         )
         
         # Keep the original action space shape that the policy expects
         self.single_action_space = gymnasium.spaces.Box(
-            -3.0, 3.0, shape=(self.num_boids, 2), dtype=np.float32
+            -np.inf, np.inf, shape=(2,), dtype=np.float32
         )
 
         self.render_mode = render_mode
@@ -42,7 +42,7 @@ class Boids(pufferlib.PufferEnv):
 
         # Create C binding with flattened action buffer
         # We need to manually create a flattened action buffer to pass to C
-        self.flat_actions = np.zeros((self.num_agents * self.num_boids * 2), dtype=np.float32)
+        self.flat_actions = np.zeros((self.num_agents * 2), dtype=np.float32)
         
         self.c_envs = binding.vec_init(
             self.observations,
@@ -51,7 +51,8 @@ class Boids(pufferlib.PufferEnv):
             self.terminals,
             self.truncations,
             num_envs,
-            num_boids,
+            seed,
+            num_boids=num_boids,
             max_steps=max_steps
         )
 
@@ -62,7 +63,7 @@ class Boids(pufferlib.PufferEnv):
 
     def step(self, actions):
         # Clip actions to valid range
-        clipped_actions = np.clip(actions, self.single_action_space.low, self.single_action_space.high)
+        clipped_actions = np.clip(actions, -3.0, 3.0)
         
         # Copy the clipped actions to our flat actions buffer for C binding
         # Flatten from [num_agents, num_boids, 2] to a 1D array for C
