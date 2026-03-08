@@ -187,6 +187,7 @@ void c_step(Boids *env) {
             // protected_range_diff = (float)(env->num_boids - protected_count) - protected_count;
             // current_boid_reward += protected_range_diff * env->seperation_factor;
 
+            // TODO: Normalize the protected count
             current_boid_reward -= protected_count * env->separation_factor;
         }
         if (visual_count) {
@@ -195,6 +196,7 @@ void c_step(Boids *env) {
             vis_vx_avg = vis_vx_sum / visual_count;
             vis_vy_avg = vis_vy_sum / visual_count;
 
+            // TODO: Normalize the differences because applying the factors(will allow easier sweeps)
             current_boid_reward -= fabsf(vis_vx_avg - current_boid->velocity.x) * env->alignment_factor;
             current_boid_reward -= fabsf(vis_vy_avg - current_boid->velocity.y) * env->alignment_factor;
             current_boid_reward -= fabsf(vis_x_avg  - current_boid->x) * env->cohesion_factor;
