@@ -43,13 +43,11 @@ typedef struct {
     // Flat array of shape (num_boids * 8) values:
     // - Each boid has 8 values corresponding to (x, y, vx, vy, dx, dy, dvx, dvy)
     // - The first 8 values are for the boid itself
-    // - All the other 8 values for the other boids
+    // - All the other 8 values are for the other boids
     float* observations;
-    // an array of shape (num_boids, 2) with the 2 values correspoinding to (dvx, dvy)
-    float* actions;
-    // an array of shape (1) with the summed up reward for all boids
-    float* rewards;
-    unsigned char* terminals; // Not being used but is required by env_binding.h
+    float* actions; // size (num_boids, 2->(dvx, dvy)) 
+    float* rewards; // size (num_boids) with per-boid rewards
+    float* terminals;
     Boid* boids;
     unsigned int num_boids;
     float margin_turn_factor;
@@ -105,8 +103,8 @@ static void compute_observations(Boids *env) {
         env->observations[idx++] = env->boids[i].y / HEIGHT;
         env->observations[idx++] = env->boids[i].velocity.x / VELOCITY_CAP;
         env->observations[idx++] = env->boids[i].velocity.y / VELOCITY_CAP;
-        // zeros for relative observations since comparing to itself will always be 0
-        for (unsigned j=0; j<5; j++) { env->observations[idx++] = 0; }
+        // zeros for relative observations since comparing to itself will always be 0 (dx, dy, dvx, dvy)
+        for (unsigned j=0; j<4; j++) { env->observations[idx++] = 0; }
 
         // observations for the other boids compared to the current boid
         for (unsigned j=0; j<env->num_boids; j++) {
@@ -121,7 +119,6 @@ static void compute_observations(Boids *env) {
             env->observations[idx++] = env->boids[j].velocity.y / VELOCITY_CAP;
             env->observations[idx++] = diff_x / WIDTH;
             env->observations[idx++] = diff_y / HEIGHT;
-            env->observations[idx++] = dist / MAX_DIST;
             env->observations[idx++] = (env->boids[i].velocity.x - env->boids[j].velocity.x) / VELOCITY_CAP;
             env->observations[idx++] = (env->boids[i].velocity.y - env->boids[j].velocity.y) / VELOCITY_CAP;
         }
@@ -158,8 +155,8 @@ void c_step(Boids *env) {
             current_boid->velocity.x = flclip(current_boid->velocity.x + (mouse_x - current_boid->x), -VELOCITY_CAP, VELOCITY_CAP);
             current_boid->velocity.y = flclip(current_boid->velocity.y + (mouse_y - current_boid->y), -VELOCITY_CAP, VELOCITY_CAP);
         } else {
-            current_boid->velocity.x = flclip(current_boid->velocity.x + env->actions[current_indx * 2 + 0], -VELOCITY_CAP, VELOCITY_CAP);
-            current_boid->velocity.y = flclip(current_boid->velocity.y + env->actions[current_indx * 2 + 1], -VELOCITY_CAP, VELOCITY_CAP);
+            current_boid->velocity.x = flclip(current_boid->velocity.x + env->actions[current_indx*2], -VELOCITY_CAP, VELOCITY_CAP);
+            current_boid->velocity.y = flclip(current_boid->velocity.y + env->actions[current_indx*2 + 1], -VELOCITY_CAP, VELOCITY_CAP);
         }
         current_boid->x = flclip(current_boid->x + current_boid->velocity.x, 0, WIDTH  - BOID_WIDTH);
         current_boid->y = flclip(current_boid->y + current_boid->velocity.y, 0, HEIGHT - BOID_HEIGHT);
@@ -208,7 +205,6 @@ void c_step(Boids *env) {
         }
 
         // Normalization
-        // env->rewards[current_indx] = current_boid_reward;
         env->rewards[current_indx] = current_boid_reward / 6.0f;
         // env->rewards[current_indx] = current_boid_reward / 205.0f;
         // env->rewards[current_indx] = current_boid_reward / 10.0f;
