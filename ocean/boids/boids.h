@@ -40,16 +40,16 @@ typedef struct {
 
 typedef struct Client Client;
 typedef struct {
-    // Flat array of shape (num_boids * 8) values:
+    // Flat array of shape (num_agents * 8) values:
     // - Each boid has 8 values corresponding to (x, y, vx, vy, dx, dy, dvx, dvy)
     // - The first 8 values are for the boid itself
     // - All the other 8 values are for the other boids
     float* observations;
-    float* actions; // size (num_boids, 2->(dvx, dvy)) 
-    float* rewards; // size (num_boids) with per-boid rewards
+    float* actions; // size (num_agents, 2->(dvx, dvy)) 
+    float* rewards; // size (num_agents) with per-boid rewards
     float* terminals;
     Boid* boids;
-    unsigned int num_boids;
+    unsigned num_agents;
     float margin_turn_factor;
     float cohesion_factor;
     float separation_factor;
@@ -58,6 +58,7 @@ typedef struct {
     Log log;
     unsigned report_interval;
     Client* client;
+    unsigned rng; // unused but required field for vecenv compatibility
 } Boids;
 
 static inline float flmax(float a, float b) { return a > b ? a : b; }
@@ -73,19 +74,19 @@ static void respawn_boid(Boids *env, unsigned int i) {
 }
 
 void init(Boids *env) {
-    if(env->num_boids < 1) {
-        printf("ERROR: num_boids must be bigger than 0\n");
+    if(env->num_agents < 1) {
+        printf("ERROR: num_agents must be bigger than 0\n");
         exit(1);
     }
     if (env->report_interval < 1) {
         printf("ERROR: report_interval must be bigger than 0\n");
         exit(1);
     }
-    env->boids = (Boid*)calloc(env->num_boids, sizeof(Boid));
+    env->boids = (Boid*)calloc(env->num_agents, sizeof(Boid));
     env->log = (Log){0};
     env->tick = 0;
 
-    for (unsigned current_indx = 0; current_indx < env->num_boids; current_indx++) {
+    for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
         env->boids[current_indx].x = rndf(LEFT_MARGIN, WIDTH  - RIGHT_MARGIN);
         env->boids[current_indx].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN);
         env->boids[current_indx].velocity.x = 0;
@@ -97,7 +98,7 @@ void init(Boids *env) {
 static void compute_observations(Boids *env) {
     int idx = 0;
     float diff_x, diff_y, dist;
-    for (unsigned i=0; i<env->num_boids; i++) {
+    for (unsigned i=0; i<env->num_agents; i++) {
         // observations for the current boid
         env->observations[idx++] = env->boids[i].x / WIDTH;
         env->observations[idx++] = env->boids[i].y / HEIGHT;
@@ -107,7 +108,7 @@ static void compute_observations(Boids *env) {
         for (unsigned j=0; j<4; j++) { env->observations[idx++] = 0; }
 
         // observations for the other boids compared to the current boid
-        for (unsigned j=0; j<env->num_boids; j++) {
+        for (unsigned j=0; j<env->num_agents; j++) {
             if (i == j) continue;
             diff_x = env->boids[i].x - env->boids[j].x;
             diff_y = env->boids[i].y - env->boids[j].y;
@@ -128,7 +129,7 @@ static void compute_observations(Boids *env) {
 void c_reset(Boids *env) {
     env->log = (Log){0};
     env->tick = 0;
-    for (unsigned boid_indx = 0; boid_indx < env->num_boids; boid_indx++) {
+    for (unsigned boid_indx = 0; boid_indx < env->num_agents; boid_indx++) {
         respawn_boid(env, boid_indx);
     }
     compute_observations(env);
@@ -148,7 +149,7 @@ void c_step(Boids *env) {
     env->rewards[0] = 0;
     env->log.score = 0;
     env->log.n = 0;
-    for (unsigned current_indx = 0; current_indx < env->num_boids; current_indx++) {
+    for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
         // apply action
         current_boid = &env->boids[current_indx];
         if (manual_control) {
@@ -164,7 +165,7 @@ void c_step(Boids *env) {
         // reward calculation
         current_boid_reward = 0.0f, protected_count = 0.0f;
         visual_count = 0.0f, vis_vx_sum = 0.0f, vis_vy_sum = 0.0f, vis_x_sum = 0.0f, vis_y_sum = 0.0f;
-        for (unsigned observed_indx = 0; observed_indx < env->num_boids; observed_indx++) {
+        for (unsigned observed_indx = 0; observed_indx < env->num_agents; observed_indx++) {
             if (current_indx == observed_indx) continue;
             observed_boid = env->boids[observed_indx];
             diff_x = current_boid->x - observed_boid.x;
@@ -181,7 +182,7 @@ void c_step(Boids *env) {
             }
         }
         if (protected_count > 0) {
-            // protected_range_diff = (float)(env->num_boids - protected_count) - protected_count;
+            // protected_range_diff = (float)(env->num_agents - protected_count) - protected_count;
             // current_boid_reward += protected_range_diff * env->seperation_factor;
 
             current_boid_reward -= protected_count * env->separation_factor;
@@ -282,7 +283,7 @@ void c_render(Boids* env) {
         BeginDrawing();
         ClearBackground((Color){6, 24, 24, 255});
 
-        for (unsigned boid_indx = 0; boid_indx < env->num_boids; boid_indx++) {
+        for (unsigned boid_indx = 0; boid_indx < env->num_agents; boid_indx++) {
             DrawTexturePro(
                 env->client->boid_texture,
                 (Rectangle){
