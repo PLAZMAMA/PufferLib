@@ -8,7 +8,7 @@
 #include "vecenv.h"
 
 void my_init(Env* env, Dict* kwargs) {
-    env->num_boids = (unsigned int)dict_get(kwargs, "num_boids")->value;
+    env->num_agents = (unsigned int)dict_get(kwargs, "num_agents")->value;
     env->report_interval = (unsigned)dict_get(kwargs, "report_interval")->value;
     env->margin_turn_factor = (float)dict_get(kwargs, "margin_turn_factor")->value;
     env->cohesion_factor = (float)dict_get(kwargs, "cohesion_factor")->value;
