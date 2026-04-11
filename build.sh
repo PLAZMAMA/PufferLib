@@ -94,6 +94,12 @@ INCLUDES=(-I./$RAYLIB_NAME/include -I./src)
 LINK_ARCHIVES="$RAYLIB_A"
 EXTRA_SRC=""
 
+
+# OpenMP (addressing gcc/clang and "apple clang" linking discrepency)
+OPENMP_LINK="-fopenmp"
+[ "$PLATFORM" = "Darwin" ] && OPENMP_LINK="-lomp"
+echo $OPENMP_LINK
+
 # Box2d (impulse_wars only)
 if [ "$ENV" = "impulse_wars" ]; then
     if [ "$MODE" = "web" ]; then BOX2D_NAME='box2d-web'
@@ -141,10 +147,10 @@ if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
         "${INCLUDES[@]}"
         "$SRC_DIR/$ENV.c" $EXTRA_SRC -o "${OUTPUT_NAME:-$ENV}"
         $LINK_ARCHIVES
-        -lm -lpthread -fopenmp
+        -lm -lpthread
         -DPLATFORM_DESKTOP
     )
-    [ "$PLATFORM" = "Darwin" ] && FLAGS+=(-framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
+    FLAGS+=($OPENMP_LINK -framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
     ${CC:-clang} $CLANG_OPT "${FLAGS[@]}"
     echo "Built: ./${OUTPUT_NAME:-$ENV}"
     exit 0
@@ -175,7 +181,7 @@ ${CC:-clang} -c $CLANG_OPT \
     -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
     -DPLATFORM_DESKTOP \
     -fno-semantic-interposition -fvisibility=hidden \
-    -fPIC -fopenmp \
+    -fPIC $OPENMP_LINK \
     "$BINDING_SRC" -o "$STATIC_OBJ"
 ar rcs "$STATIC_LIB" "$STATIC_OBJ"
 
@@ -198,7 +204,7 @@ if [ "$MODE" = "profile" ]; then
         tests/profile_kernels.cu ini.c \
         "$STATIC_LIB" "$RAYLIB_A" \
         -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn -lnvToolsExt \
-        -lGL -lm -lpthread -lomp \
+        -lGL -lm -lpthread $OPENMP_LINK \
         -o profile
     echo "=== Built: ./profile ==="
     exit 0
@@ -206,7 +212,7 @@ fi
 
 if [ "$MODE" = "cpu" ]; then
     echo "=== Compiling bindings_cpu.cpp ==="
-    ${CXX:-g++} -c -fPIC -fopenmp \
+    ${CXX:-g++} -c -fPIC $OPENMP_LINK \
         -D_GLIBCXX_USE_CXX11_ABI=1 \
         -DPLATFORM_DESKTOP \
         -std=c++17 \
@@ -218,9 +224,9 @@ if [ "$MODE" = "cpu" ]; then
 
     echo "=== Linking $OUTPUT (CPU) ==="
     LINK_CMD=(
-        ${CXX:-g++} -shared -fPIC -fopenmp
+        ${CXX:-g++} -shared -fPIC $OPENMP_LINK
         src/bindings_cpu.o "$STATIC_LIB" "$RAYLIB_A"
-        -lm -lpthread -lomp -undefined dynamic_lookup
+        -lm -lpthread -undefined dynamic_lookup
         $LINK_OPT
     )
     [ "$PLATFORM" = "Linux" ] && LINK_CMD+=(-Bsymbolic-functions)
@@ -248,7 +254,7 @@ $NVCC -c -Xcompiler -fPIC \
 # Step 3: Link
 echo "=== Linking $OUTPUT ==="
 LINK_CMD=(
-    ${CXX:-g++} -shared -fPIC -fopenmp
+    ${CXX:-g++} -shared -fPIC $OPENMP_LINK
     src/bindings.o "$STATIC_LIB" "$RAYLIB_A"
     -L$CUDA_HOME/lib64
     -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn
