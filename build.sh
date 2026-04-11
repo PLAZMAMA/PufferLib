@@ -94,7 +94,6 @@ INCLUDES=(-I./$RAYLIB_NAME/include -I./src)
 LINK_ARCHIVES="$RAYLIB_A"
 EXTRA_SRC=""
 
-
 # OpenMP (addressing gcc/clang and "apple clang" linking discrepency)
 OPENMP_LINK="-fopenmp"
 [ "$PLATFORM" = "Darwin" ] && OPENMP_LINK="-lomp"
