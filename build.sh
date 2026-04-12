@@ -97,7 +97,6 @@ EXTRA_SRC=""
 # OpenMP (addressing gcc/clang and "apple clang" linking discrepency)
 OPENMP_LINK="-fopenmp"
 [ "$PLATFORM" = "Darwin" ] && OPENMP_LINK="-lomp"
-echo $OPENMP_LINK
 
 # Box2d (impulse_wars only)
 if [ "$ENV" = "impulse_wars" ]; then
